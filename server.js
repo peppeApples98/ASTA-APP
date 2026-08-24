@@ -9,9 +9,8 @@ const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Stato dell'asta
 let auctionState = {
-  step: 'setup', // 'setup', 'waiting', 'active', 'ended'
+  step: 'setup',
   teams: [],
   currentItem: '',
   currentPrice: 0,
@@ -21,10 +20,8 @@ let auctionState = {
 };
 
 io.on('connection', (socket) => {
-  // Invia lo stato attuale appena un utente si connette
   socket.emit('updateState', auctionState);
 
-  // L'admin crea l'asta con le squadre
   socket.on('setupAuction', (teamsList) => {
     auctionState.teams = teamsList;
     auctionState.step = 'waiting';
@@ -34,7 +31,16 @@ io.on('connection', (socket) => {
     io.emit('updateState', auctionState);
   });
 
-  // L'admin avvia l'asta per un nuovo oggetto/giocatore
+  socket.on('resetAuction', () => {
+    stopTimer();
+    auctionState.step = 'setup';
+    auctionState.teams = [];
+    auctionState.currentItem = '';
+    auctionState.currentPrice = 0;
+    auctionState.currentLeader = 'Nessuno';
+    io.emit('updateState', auctionState);
+  });
+
   socket.on('startItem', ({ itemName, startPrice }) => {
     auctionState.currentItem = itemName;
     auctionState.currentPrice = Number(startPrice);
@@ -46,7 +52,6 @@ io.on('connection', (socket) => {
     startTimer();
   });
 
-  // Gestione dei rilanci da parte delle squadre
   socket.on('placeBid', ({ teamName, bidAmount }) => {
     if (auctionState.step !== 'active') return;
     
@@ -59,7 +64,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Reset per un nuovo oggetto
   socket.on('resetItem', () => {
     stopTimer();
     auctionState.step = 'waiting';
@@ -67,10 +71,6 @@ io.on('connection', (socket) => {
     auctionState.currentPrice = 0;
     auctionState.currentLeader = 'Nessuno';
     io.emit('updateState', auctionState);
-  });
-
-  socket.on('disconnect', () => {
-    // Gestione disconnessione opzionale
   });
 });
 
@@ -82,7 +82,7 @@ function startTimer() {
       io.emit('updateState', auctionState);
     } else {
       stopTimer();
-      auctionState.step = 'ended'; // Asta chiusa per questo oggetto
+      auctionState.step = 'ended';
       io.emit('updateState', auctionState);
     }
   }, 1000);
