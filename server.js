@@ -45,7 +45,7 @@ io.on('connection', (socket) => {
     stopTimer();
     auctionState.currentItem = itemName;
     auctionState.currentPrice = Number(startPrice);
-    auctionState.currentLeader = 'In attesa di offerte';
+    auctionState.currentLeader = 'Nessuno'; // Nessuno ha ancora puntato
     auctionState.step = 'active';
     auctionState.timeLeft = 10;
     
@@ -57,8 +57,11 @@ io.on('connection', (socket) => {
     if (auctionState.step !== 'active') return;
     
     const amount = Number(bidAmount);
-    // Se nessuno ha ancora offerto o se l'offerta è maggiore del prezzo corrente
-    if (amount > auctionState.currentPrice || auctionState.currentLeader === 'In attesa di offerte' || auctionState.currentLeader === 'Nessuno') {
+    
+    // Se nessuno ha fatto offerte, accetta qualsiasi importo >= al prezzo di partenza
+    const isFirstBid = (auctionState.currentLeader === 'Nessuno' || auctionState.currentLeader === 'In attesa di offerte');
+    
+    if (isFirstBid ? (amount >= auctionState.currentPrice) : (amount > auctionState.currentPrice)) {
       auctionState.currentPrice = amount;
       auctionState.currentLeader = teamName;
       auctionState.timeLeft = 10; // Reset timer a 10s
