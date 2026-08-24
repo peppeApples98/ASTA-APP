@@ -115,6 +115,7 @@
         function updateAdminDropdown() {
             const inputs = document.querySelectorAll('.team-name-input');
             const select = document.getElementById('admin-team-select');
+            if(!select) return;
             select.innerHTML = '';
             inputs.forEach(input => {
                 if (input.value.trim()) {
@@ -130,7 +131,8 @@
                 alert('Inserisci almeno 2 squadre valide!');
                 return;
             }
-            adminTeam = document.getElementById('admin-team-select').value;
+            const adminSelect = document.getElementById('admin-team-select');
+            adminTeam = adminSelect ? adminSelect.value : null;
             if (!adminTeam) {
                 alert('Seleziona quale squadra gestisce l\'asta!');
                 return;
@@ -148,6 +150,7 @@
 
         socket.on('updateState', (state) => {
             globalState = state;
+            // Se l'asta torna allo stato di setup totale, azzeriamo tutto
             if (globalState.step === 'setup') {
                 myTeam = null;
                 adminTeam = null;
@@ -161,64 +164,91 @@
             const screenAuction = document.getElementById('screen-auction');
             const adminControls = document.getElementById('admin-controls');
 
+            // Se l'asta è in setup, mostriamo la schermata 1
             if (globalState.step === 'setup') {
                 screenSetup.classList.remove('hidden');
                 screenLogin.classList.add('hidden');
                 screenAuction.classList.add('hidden');
-            } else if (globalState.step === 'waiting' || globalState.step === 'active' || globalState.step === 'ended') {
-                if (!myTeam) {
-                    screenSetup.classList.add('hidden');
-                    screenLogin.classList.remove('hidden');
-                    screenAuction.classList.add('hidden');
-                    
-                    const selectContainer = document.getElementById('teams-select-container');
+                return;
+            }
+
+            // Se siamo in attesa, asta attiva o finita:
+            // 1. Se l'utente non ha ancora scelto la sua squadra dal cellulare, mostra la schermata di login
+            if (!myTeam) {
+                screenSetup.classList.add('hidden');
+                screenLogin.classList.remove('hidden');
+                screenAuction.classList.add('hidden');
+                
+                const selectContainer = document.getElementById('teams-select-container');
+                if(selectContainer && globalState.teams) {
                     selectContainer.innerHTML = `<div class="text-xs text-slate-400 mb-2 uppercase tracking-wide">Seleziona la tua squadra:</div>`;
-                    
                     globalState.teams.forEach(team => {
                         let tagAdmin = (team === adminTeam) ? ' ⭐ (Gestore)' : '';
                         selectContainer.innerHTML += `<button type="button" onclick="loginAsTeam('${team}')" class="w-full bg-slate-700 hover:bg-slate-600 text-left px-4 py-3 rounded-xl font-semibold transition border border-slate-600">${team}${tagAdmin}</button>`;
                     });
-                    return;
                 }
+                return;
+            }
 
-                screenSetup.classList.add('hidden');
-                screenLogin.classList.add('hidden');
-                screenAuction.classList.remove('hidden');
+            // 2. Altrimenti mostra la plancia dell'asta attiva
+            screenSetup.classList.add('hidden');
+            screenLogin.classList.add('hidden');
+            screenAuction.classList.remove('hidden');
 
-                document.getElementById('my-team-name').innerText = myTeam + (myTeam === adminTeam ? ' ⭐ [Gestore]' : '');
-                document.getElementById('display-item-name').innerText = globalState.currentItem || 'In attesa...';
-                document.getElementById('display-current-price').innerText = globalState.currentPrice;
-                document.getElementById('display-current-leader').innerText = globalState.currentLeader;
+            const teamNameEl = document.getElementById('my-team-name');
+            if(teamNameEl) {
+                teamNameEl.innerText = myTeam + (myTeam === adminTeam ? ' ⭐ [Gestore]' : '');
+            }
 
-                const timerBox = document.getElementById('timer-box');
-                const statusLabel = document.getElementById('item-status-label');
+            const itemNameEl = document.getElementById('display-item-name');
+            if(itemNameEl) itemNameEl.innerText = globalState.currentItem || 'In attesa...';
 
-                if (globalState.step === 'active') {
-                    timerBox.classList.remove('hidden');
-                    document.getElementById('display-timer').innerText = globalState.timeLeft;
+            const priceEl = document.getElementById('display-current-price');
+            if(priceEl) priceEl.innerText = globalState.currentPrice;
+
+            const leaderEl = document.getElementById('display-current-leader');
+            if(leaderEl) leaderEl.innerText = globalState.currentLeader;
+
+            const timerBox = document.getElementById('timer-box');
+            const statusLabel = document.getElementById('item-status-label');
+
+            if (globalState.step === 'active') {
+                if(timerBox) timerBox.classList.remove('hidden');
+                const timerEl = document.getElementById('display-timer');
+                if(timerEl) timerEl.innerText = globalState.timeLeft;
+                if(statusLabel) {
                     statusLabel.innerText = "ASTA APERTA";
                     statusLabel.className = "text-xs uppercase tracking-widest text-emerald-400 font-semibold animate-pulse";
-                } else if (globalState.step === 'ended') {
-                    timerBox.classList.add('hidden');
+                }
+            } else if (globalState.step === 'ended') {
+                if(timerBox) timerBox.classList.add('hidden');
+                if(statusLabel) {
                     statusLabel.innerText = "🏁 ASTA CHIUSA - Vinto da " + globalState.currentLeader;
                     statusLabel.className = "text-xs uppercase tracking-widest text-yellow-400 font-semibold";
-                } else {
-                    timerBox.classList.add('hidden');
+                }
+            } else {
+                if(timerBox) timerBox.classList.add('hidden');
+                if(statusLabel) {
                     statusLabel.innerText = "In attesa del prossimo oggetto...";
                     statusLabel.className = "text-xs uppercase tracking-widest text-slate-400 font-semibold";
                 }
+            }
 
+            if (adminControls) {
                 if (myTeam === adminTeam) {
                     adminControls.classList.remove('hidden');
                 } else {
                     adminControls.classList.add('hidden');
                 }
-
-                const isActive = (globalState.step === 'active');
-                document.getElementById('btn-plus-1').disabled = !isActive;
-                document.getElementById('btn-plus-5').disabled = !isActive;
-                document.getElementById('btn-custom-bid').disabled = !isActive;
             }
+
+            const isActive = (globalState.step === 'active');
+            const btn1 = document.getElementById('btn-plus-1');
+            const btn5 = document.getElementById('btn-plus-5');
+            const btnCustom = document.getElementById('btn-custom-bid');
+            if(btn1) btn1.disabled = !isActive;
+            if(btn5) btn5.disabled = !isActive;
+            if(btnCustom) btnCustom.disabled = !isActive;
         }
 
         function loginAsTeam(teamName) {
@@ -227,14 +257,17 @@
         }
 
         function adminStartItem() {
-            const itemName = document.getElementById('admin-item-name').value.trim();
-            const startPrice = document.getElementById('admin-start-price').value;
+            const nameInput = document.getElementById('admin-item-name');
+            const priceInput = document.getElementById('admin-start-price');
+            const itemName = nameInput ? nameInput.value.trim() : '';
+            const startPrice = priceInput ? priceInput.value : 1;
+            
             if (!itemName) {
                 alert('Inserisci il nome dell\'oggetto!');
                 return;
             }
             socket.emit('startItem', { itemName, startPrice });
-            document.getElementById('admin-item-name').value = '';
+            if(nameInput) nameInput.value = '';
         }
 
         function adminResetItem() {
@@ -249,6 +282,7 @@
 
         function bidCustom() {
             const customInput = document.getElementById('custom-bid-amount');
+            if(!customInput) return;
             const amount = Number(customInput.value);
             if (amount <= globalState.currentPrice) {
                 alert('L\'offerta deve essere superiore al prezzo attuale (' + globalState.currentPrice + ')');
