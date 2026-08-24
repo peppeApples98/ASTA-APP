@@ -103,12 +103,15 @@
         function generateTeamInputs() {
             const count = document.getElementById('num-teams').value;
             const container = document.getElementById('teams-inputs-container');
+            if(!container) return;
             container.innerHTML = '';
             for (let i = 1; i <= count; i++) {
                 container.innerHTML += `<input type="text" placeholder="Nome Squadra ${i}" class="team-name-input w-full p-2 rounded bg-slate-700 border border-slate-600 text-white text-sm" oninput="updateAdminDropdown()">`;
             }
-            document.getElementById('btn-start-auction').classList.remove('hidden');
-            document.getElementById('admin-choice-container').classList.remove('hidden');
+            const startBtn = document.getElementById('btn-start-auction');
+            const adminChoice = document.getElementById('admin-choice-container');
+            if(startBtn) startBtn.classList.remove('hidden');
+            if(adminChoice) adminChoice.classList.remove('hidden');
             updateAdminDropdown();
         }
 
@@ -150,7 +153,6 @@
 
         socket.on('updateState', (state) => {
             globalState = state;
-            // Se l'asta torna allo stato di setup totale, azzeriamo tutto
             if (globalState.step === 'setup') {
                 myTeam = null;
                 adminTeam = null;
@@ -164,7 +166,8 @@
             const screenAuction = document.getElementById('screen-auction');
             const adminControls = document.getElementById('admin-controls');
 
-            // Se l'asta è in setup, mostriamo la schermata 1
+            if (!screenSetup || !screenLogin || !screenAuction) return;
+
             if (globalState.step === 'setup') {
                 screenSetup.classList.remove('hidden');
                 screenLogin.classList.add('hidden');
@@ -172,8 +175,6 @@
                 return;
             }
 
-            // Se siamo in attesa, asta attiva o finita:
-            // 1. Se l'utente non ha ancora scelto la sua squadra dal cellulare, mostra la schermata di login
             if (!myTeam) {
                 screenSetup.classList.add('hidden');
                 screenLogin.classList.remove('hidden');
@@ -190,7 +191,6 @@
                 return;
             }
 
-            // 2. Altrimenti mostra la plancia dell'asta attiva
             screenSetup.classList.add('hidden');
             screenLogin.classList.add('hidden');
             screenAuction.classList.remove('hidden');
