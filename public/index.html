@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asta in Tempo Reale</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col justify-between">
+
+    <div class="container mx-auto p-4 max-w-md flex-grow flex flex-col justify-center">
+        
+        <!-- SCHERMATA 1: SETUP ADMIN -->
+        <div id="screen-setup" class="bg-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+            <h1 class="text-2xl font-bold text-center text-blue-400">Crea Nuova Asta</h1>
+            <div>
+                <label class="block text-sm font-medium mb-1">Numero di Squadre:</label>
+                <input type="number" id="num-teams" min="2" max="20" value="4" class="w-full p-2 rounded bg-slate-700 border border-slate-600 text-white">
+            </div>
+            <button onclick="generateTeamInputs()" class="w-full bg-blue-600 hover:bg-blue-500 font-semibold p-2 rounded transition">Genera Campi Squadre</button>
+            <div id="teams-inputs-container" class="space-y-2 max-h-48 overflow-y-auto"></div>
+            <button id="btn-start-auction" onclick="submitSetup()" class="w-full bg-green-600 hover:bg-green-500 font-semibold p-3 rounded transition hidden">Avvia Stanza Asta</button>
+        </div>
+
+        <!-- SCHERMATA 2: SCELTA SQUADRA (Per i partecipanti) -->
+        <div id="screen-login" class="bg-slate-800 p-6 rounded-2xl shadow-xl space-y-4 hidden">
+            <h1 class="text-2xl font-bold text-center text-blue-400">Chi sei?</h1>
+            <p class="text-sm text-slate-400 text-center">Seleziona la tua squadra per accedere all'asta:</p>
+            <div id="teams-select-container" class="space-y-2"></div>
+        </div>
+
+        <!-- SCHERMATA 3: PLANCIA ASTA (Admin & Squadre) -->
+        <div id="screen-auction" class="space-y-4 hidden">
+            <!-- Header Info -->
+            <div class="bg-slate-800 p-4 rounded-xl flex justify-between items-center shadow">
+                <div>
+                    <span class="text-xs text-slate-400 uppercase tracking-wider">Sei loggato come:</span>
+                    <div id="my-team-name" class="font-bold text-lg text-emerald-400">Admin</div>
+                </div>
+                <button onclick="location.reload()" class="text-xs bg-red-600/30 text-red-400 px-2 py-1 rounded border border-red-600">Esci</button>
+            </div>
+
+            <!-- Box Oggetto in Corso -->
+            <div class="bg-slate-800 p-6 rounded-2xl shadow-xl text-center space-y-3">
+                <div id="item-status-label" class="text-xs uppercase tracking-widest text-yellow-400 font-semibold">In attesa del prossimo oggetto...</div>
+                <h2 id="display-item-name" class="text-3xl font-extrabold text-white">-</h2>
+                
+                <div class="py-2">
+                    <span class="text-sm text-slate-400">Offerta Attuale:</span>
+                    <div class="text-4xl font-black text-blue-400"><span id="display-current-price">0</span> crediti</div>
+                    <div class="text-sm text-slate-300 mt-1">Offerto da: <span id="display-current-leader" class="font-bold text-white">Nessuno</span></div>
+                </div>
+
+                <!-- Timer -->
+                <div id="timer-box" class="text-2xl font-mono font-bold text-red-400 bg-red-950/40 py-2 rounded-lg border border-red-900/50 hidden">
+                    ⏱️ Tempo rimasto: <span id="display-timer">10</span>s
+                </div>
+            </div>
+
+            <!-- CONTROLLI ADMIN (Visibili solo all'admin) -->
+            <div id="admin-controls" class="bg-slate-800 p-4 rounded-xl space-y-3 hidden border border-blue-500/30">
+                <h3 class="text-sm font-bold text-blue-400 uppercase tracking-wide">Pannello Admin</h3>
+                <input type="text" id="admin-item-name" placeholder="Nome Giocatore / Oggetto" class="w-full p-2 rounded bg-slate-700 border border-slate-600 text-white text-sm">
+                <input type="number" id="admin-start-price" placeholder="Prezzo di partenza" value="1" class="w-full p-2 rounded bg-slate-700 border border-slate-600 text-white text-sm">
+                <button onclick="adminStartItem()" class="w-full bg-blue-600 hover:bg-blue-500 font-semibold py-2 rounded text-sm transition">Avvia Asta Oggetto</button>
+                <button onclick="adminResetItem()" class="w-full bg-slate-700 hover:bg-slate-600 font-semibold py-2 rounded text-sm transition">Prossimo Oggetto / Reset</button>
+            </div>
+
+            <!-- CONTROLLI SQUADRA (Rilanci) -->
+            <div id="user-controls" class="bg-slate-800 p-4 rounded-xl space-y-3 hidden">
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="bidRelative(1)" id="btn-plus-1" class="bg-emerald-600 hover:bg-emerald-500 font-bold py-3 rounded-xl text-lg transition disabled:opacity-50">+1</button>
+                    <button onclick="bidRelative(5)" id="btn-plus-5" class="bg-emerald-700 hover:bg-emerald-600 font-bold py-3 rounded-xl text-lg transition disabled:opacity-50">+5</button>
+                </div>
+                <div class="flex gap-2">
+                    <input type="number" id="custom-bid-amount" placeholder="Cifra personalizzata" class="w-full p-2 rounded bg-slate-700 border border-slate-600 text-white">
+                    <button onclick="bidCustom()" id="btn-custom-bid" class="bg-blue-600 hover:bg-blue-500 font-semibold px-4 rounded transition disabled:opacity-50">Offri</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <footer class="text-center py-4 text-xs text-slate-500">
+        Realizzato per Asta in Tempo Reale
+    </footer>
+
+    <script>
+        const socket = io();
+        let myTeam = null; // Se null, l'utente è admin o non loggato
+        let globalState = {};
+
+        function generateTeamInputs() {
+            const count = document.getElementById('num-teams').value;
+            const container = document.getElementById('teams-inputs-container');
+            container.innerHTML = '';
+            for (let i = 1; i <= count; i++) {
+                container.innerHTML += `<input type="text" placeholder="Nome Squadra ${i}" class="team-name-input w-full p-2 rounded bg-slate-700 border border-slate-600 text-white text-sm">`;
+            }
+            document.getElementById('btn-start-auction').classList.remove('hidden');
+        }
+
+        function submitSetup() {
+            const inputs = document.querySelectorAll('.team-name-input');
+            const teams = Array.from(inputs).map(input => input.value.trim()).filter(Boolean);
+            if (teams.length < 2) {
+                alert('Inserisci almeno 2 squadre valide!');
+                return;
+            }
+            socket.emit('setupAuction', teams);
+        }
+
+        socket.on('updateState', (state) => {
+            globalState = state;
+            renderUI();
+        });
+
+        function renderUI() {
+            const screenSetup = document.getElementById('screen-setup');
+            const screenLogin = document.getElementById('screen-login');
+            const screenAuction = document.getElementById('screen-auction');
+            
+            const adminControls = document.getElementById('admin-controls');
+            const userControls = document.getElementById('user-controls');
+
+            if (globalState.step === 'setup') {
+                screenSetup.classList.remove('hidden');
+                screenLogin.classList.add('hidden');
+                screenAuction.classList.add('hidden');
+            } else if (globalState.step === 'waiting' || globalState.step === 'active' || globalState.step === 'ended') {
+                // Se l'utente non ha ancora scelto la squadra e non è admin, mostra la schermata di login squadra
+                if (!myTeam && myTeam !== 'ADMIN') {
+                    screenSetup.classList.add('hidden');
+                    screenLogin.classList.remove('hidden');
+                    screenAuction.classList.add('hidden');
+                    
+                    const selectContainer = document.getElementById('teams-select-container');
+                    selectContainer.innerHTML = `<button onclick="loginAsAdmin()" class="w-full bg-purple-600 hover:bg-purple-500 font-semibold p-3 rounded mb-4 transition">Accedi come Admin (Gestore)</button>`;
+                    selectContainer.innerHTML += `<div class="text-xs text-slate-400 mb-2 uppercase tracking-wide">Oppure seleziona la tua squadra:</div>`;
+                    
+                    globalState.teams.forEach(team => {
+                        selectContainer.innerHTML += `<button onclick="loginAsTeam('${team}')" class="w-full bg-slate-700 hover:bg-slate-600 text-left px-4 py-3 rounded-xl font-semibold transition border border-slate-600">${team}</button>`;
+                    });
+                    return;
+                }
+
+                // Altrimenti mostra la plancia dell'asta
+                screenSetup.classList.add('hidden');
+                screenLogin.classList.add('hidden');
+                screenAuction.classList.remove('hidden');
+
+                document.getElementById('my-team-name').innerText = myTeam;
+                document.getElementById('display-item-name').innerText = globalState.currentItem || 'In attesa...';
+                document.getElementById('display-current-price').innerText = globalState.currentPrice;
+                document.getElementById('display-current-leader').innerText = globalState.currentLeader;
+
+                const timerBox = document.getElementById('timer-box');
+                const statusLabel = document.aggiungi_item_status_label || document.getElementById('item-status-label');
+
+                if (globalState.step === 'active') {
+                    timerBox.classList.remove('hidden');
+                    document.getElementById('display-timer').innerText = globalState.timeLeft;
+                    statusLabel.innerText = "ASTA APERTA";
+                    statusLabel.className = "text-xs uppercase tracking-widest text-emerald-400 font-semibold animate-pulse";
+                } else if (globalState.step === 'ended') {
+                    timerBox.classList.add('hidden');
+                    statusLabel.innerText = "🏁 ASTA CHIUSA - Vinto da " + globalState.currentLeader;
+                    statusLabel.className = "text-xs uppercase tracking-widest text-yellow-400 font-semibold";
+                } else {
+                    timerBox.classList.add('hidden');
+                    statusLabel.innerText = "In attesa del prossimo oggetto...";
+                    statusLabel.className = "text-xs uppercase tracking-widest text-slate-400 font-semibold";
+                }
+
+                // Mostra i controlli in base al ruolo
+                if (myTeam === 'ADMIN') {
+                    adminControls.classList.remove('hidden');
+                    userControls.classList.add('hidden');
+                } else {
+                    adminControls.classList.add('hidden');
+                    userControls.classList.remove('hidden');
+                    
+                    // Disabilita i pulsanti di rilancio se l'asta non è attiva o se ha vinto lui
+                    const isActive = (globalState.step === 'active');
+                    document.getElementById('btn-plus-1').disabled = !isActive;
+                    document.getElementById('btn-plus-5').disabled = !isActive;
+                    document.getElementById('btn-custom-bid').disabled = !isActive;
+                }
+            }
+        }
+
+        function loginAsAdmin() {
+            myTeam = 'ADMIN';
+            renderUI();
+        }
+
+        function loginAsTeam(teamName) {
+            myTeam = teamName;
+            renderUI();
+        }
+
+        function adminStartItem() {
+            const itemName = document.getElementById('admin-item-name').value.trim();
+            const startPrice = document.getElementById('admin-start-price').value;
+            if (!itemName) {
+                alert('Inserisci il nome dell\'oggetto!');
+                return;
+            }
+            socket.emit('startItem', { itemName, startPrice });
+            document.getElementById('admin-item-name').value = '';
+        }
+
+        function adminResetItem() {
+            socket.emit('resetItem');
+        }
+
+        function bidRelative(increment) {
+            const newBid = globalState.currentPrice + increment;
+            socket.emit('placeBid', { teamName: myTeam, bidAmount: newBid });
+        }
+
+        function bidCustom() {
+            const customInput = document.getElementById('custom-bid-amount');
+            const amount = Number(customInput.value);
+            if (amount <= globalState.currentPrice) {
+                alert('L\'offerta deve essere superiore al prezzo attuale (' + globalState.currentPrice + ')');
+                return;
+            }
+            socket.emit('placeBid', { teamName: myTeam, bidAmount: amount });
+            customInput.value = '';
+        }
+    </script>
+</body>
+</html>
