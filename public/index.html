@@ -29,7 +29,7 @@
             <button type="button" id="btn-start-auction" onclick="submitSetup()" class="w-full bg-green-600 hover:bg-green-500 font-semibold p-3 rounded transition hidden">Avvia Stanza Asta</button>
         </div>
 
-        <!-- SCHERMATA 2: SCELTA SQUADRA (Per i partecipanti) -->
+        <!-- SCHERMATA 2: SCELTA SQUADRA -->
         <div id="screen-login" class="bg-slate-800 p-6 rounded-2xl shadow-xl space-y-4 hidden">
             <h1 class="text-2xl font-bold text-center text-blue-400">Chi sei?</h1>
             <p class="text-sm text-slate-400 text-center">Seleziona la tua squadra per accedere all'asta:</p>
@@ -37,7 +37,7 @@
             <button type="button" onclick="triggerReset()" class="w-full mt-4 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/50 font-semibold p-2 rounded text-xs transition">🔄 Ricrea Asta / Cambia Squadre</button>
         </div>
 
-        <!-- SCHERMATA 3: PLANCIA ASTA (Admin & Squadre) -->
+        <!-- SCHERMATA 3: PLANCIA ASTA -->
         <div id="screen-auction" class="space-y-4 hidden">
             <!-- Header Info -->
             <div class="bg-slate-800 p-4 rounded-xl flex justify-between items-center shadow">
@@ -242,7 +242,8 @@
         }
 
         function bidRelative(increment) {
-            const newBid = Number(globalState.currentPrice) + increment;
+            const current = Number(globalState.currentPrice) || 0;
+            const newBid = current + increment;
             socket.emit('placeBid', { teamName: myTeam, bidAmount: newBid });
         }
 
