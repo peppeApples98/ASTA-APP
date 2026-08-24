@@ -42,9 +42,10 @@ io.on('connection', (socket) => {
   });
 
   socket.on('startItem', ({ itemName, startPrice }) => {
+    stopTimer();
     auctionState.currentItem = itemName;
     auctionState.currentPrice = Number(startPrice);
-    auctionState.currentLeader = 'Nessuno';
+    auctionState.currentLeader = 'In attesa di offerte';
     auctionState.step = 'active';
     auctionState.timeLeft = 10;
     
@@ -56,10 +57,11 @@ io.on('connection', (socket) => {
     if (auctionState.step !== 'active') return;
     
     const amount = Number(bidAmount);
-    if (amount > auctionState.currentPrice) {
+    // Se nessuno ha ancora offerto o se l'offerta è maggiore del prezzo corrente
+    if (amount > auctionState.currentPrice || auctionState.currentLeader === 'In attesa di offerte' || auctionState.currentLeader === 'Nessuno') {
       auctionState.currentPrice = amount;
       auctionState.currentLeader = teamName;
-      auctionState.timeLeft = 10; // Reset del timer a 10 secondi
+      auctionState.timeLeft = 10; // Reset timer a 10s
       io.emit('updateState', auctionState);
     }
   });
