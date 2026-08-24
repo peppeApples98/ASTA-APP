@@ -274,18 +274,26 @@
             socket.emit('resetItem');
         }
 
+        // FIX: invia l'incremento (relativeAmount) invece del prezzo
+        // già calcolato lato client. Il server somma l'incremento al
+        // SUO currentPrice in modo atomico: niente più race condition
+        // se due squadre cliccano +1/+5 quasi nello stesso istante,
+        // e niente più dipendenza da uno globalState potenzialmente
+        // non aggiornatissimo sul client.
         function bidRelative(increment) {
-            const current = Number(globalState.currentPrice) || 0;
-            const newBid = current + increment;
-            socket.emit('placeBid', { teamName: myTeam, bidAmount: newBid });
+            if (!myTeam) return;
+            socket.emit('placeBid', { teamName: myTeam, relativeAmount: increment });
         }
 
         function bidCustom() {
             const customInput = document.getElementById('custom-bid-amount');
             if(!customInput) return;
             const amount = Number(customInput.value);
-            if (amount <= globalState.currentPrice) {
-                alert('L\'offerta deve essere superiore al prezzo attuale (' + globalState.currentPrice + ')');
+            if (!myTeam) return;
+            // FIX: allineato al server, che accetta un'offerta pari
+            // al prezzo di partenza quando nessuno ha ancora offerto.
+            if (amount < globalState.currentPrice) {
+                alert('L\'offerta deve essere almeno pari al prezzo attuale (' + globalState.currentPrice + ')');
                 return;
             }
             socket.emit('placeBid', { teamName: myTeam, bidAmount: amount });
